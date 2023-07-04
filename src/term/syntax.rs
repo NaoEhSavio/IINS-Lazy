@@ -5,6 +5,7 @@
 // <Ann>  ::= "<" <Term> ":" <Term> ")"
 // <Sup>  ::= "{" <Term> <Term> "}" ["#" <tag>]
 // <Dup>  ::= "dup" ["#" <tag>] <name> <name> "=" <Term> [";"] <Term>
+// <Let>  ::= "let"<<name> "=" <Term> [";"]
 // <Fix>  ::= "@" <name> <Term>
 // <Var>  ::= <name>
 // <Set>  ::= "*"
@@ -58,6 +59,20 @@ pub fn parse_term<'a>(code: &'a Str, ctx: &mut Context<'a>, idx: &mut u32, defin
       let end = code.iter().position(|&c| c == b'\n').unwrap_or(code.len());
       parse_term(&code[end..], ctx, idx, definitions)
     }
+    // Let: let nam = val  ;?
+    b'l' if code.starts_with(b"let ") => {
+      let (code, nam) = parse_name(&code[4..]);
+      let code = parse_text(code, b"=").unwrap();
+      let (code, val) = parse_term(code,ctx,idx,definitions);
+      let code = if code[0] == b';' {&code[1..]} else {code};
+      extend(nam, None, ctx);
+      let (code, bod) = parse_term(code, ctx, idx, definitions);
+      narrow(ctx);
+      let nam = nam.to_vec();
+      let val = Box::new(val);
+      let bod = Box::new(bod);
+      (code, Let  {nam, val, bod})      
+    }
     // Definition: `def nam = val; bod` (note: ';' is optional)
     b'd' if code.starts_with(b"def ") => {
       let (code, nam) = parse_name(&code[4..]);
@@ -74,6 +89,7 @@ pub fn parse_term<'a>(code: &'a Str, ctx: &mut Context<'a>, idx: &mut u32, defin
     // Typed Abstraction: `λ(var: Type) body`
     b'\xce' if code[1] == b'\xbb' && code[2] == b'(' => {
       let (code, nam) = parse_name(&code[3..]);
+      // let  code = skip_whitespace(code);
       let  code       = parse_text(code, b":").unwrap();
       let (code, typ) = parse_term(code, ctx, idx, definitions);
       let  code       = parse_text(code, b")").unwrap();
@@ -88,6 +104,7 @@ pub fn parse_term<'a>(code: &'a Str, ctx: &mut Context<'a>, idx: &mut u32, defin
     // Typed Abstraction: `\(var: Type) body`
     b'\\' if code[1] == b'(' => {
       let (code, nam) = parse_name(&code[2..]);
+      // let code = skip_whitespace(code);
       let  code       = parse_text(code, b":").unwrap();
       let (code, typ) = parse_term(code, ctx, idx, definitions);
       let  code       = parse_text(code, b")").unwrap();
@@ -102,6 +119,7 @@ pub fn parse_term<'a>(code: &'a Str, ctx: &mut Context<'a>, idx: &mut u32, defin
     // Untyped Abstraction: `λvar body`
     b'\xce' if code[1] == b'\xbb' => {
       let (code, nam) = parse_name(&code[2..]);
+      // let code = skip_whitespace(code);
       extend(nam, None, ctx);
       let (code, bod) = parse_term(code, ctx, idx, definitions);
       narrow(ctx);
@@ -124,12 +142,14 @@ pub fn parse_term<'a>(code: &'a Str, ctx: &mut Context<'a>, idx: &mut u32, defin
     // Application: `(func argm1 argm2 ... argmN)`
     b'(' => {
       let (mut code, mut fun) = parse_term(&code[1..], ctx, idx, definitions);
+      // code = skip_whitespace(code);
       while code[0] != b')' {
-        let (new_code, arg) = parse_term(code, ctx, idx, definitions);
-        code = skip_whitespace(new_code);
+        code = skip_whitespace(code);
+        let (code, arg) = parse_term(code, ctx, idx, definitions);
         let arg = Box::new(arg);
         fun = App { fun: Box::new(fun), arg };
       }
+      // let code = skip_whitespace(code);
       let code = parse_text(code, b")").unwrap();
       (code, fun)
     }
@@ -277,6 +297,15 @@ pub fn to_string(term : &Term) -> Vec<Chr> {
         stringify_term(code, &val);
         code.extend_from_slice(b"; ");
         stringify_term(code, &nxt);
+      },
+      &Let {ref nam, ref val, ref bod} => {
+        code.extend_from_slice(b"let ");
+        code.append(&mut nam.clone());
+        code.extend_from_slice(b" ");
+        code.extend_from_slice(b" = ");
+        stringify_term(code, &val);
+        code.extend_from_slice(b"; ");
+        stringify_term(code, &bod);
       },
       &Fix{ref nam, ref bod} => {
         code.extend_from_slice(b"@");

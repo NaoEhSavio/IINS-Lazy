@@ -113,6 +113,23 @@ pub fn alloc_at(inet: &mut INet, term: &Term, host: Port, definition_name_to_id:
         link(net, val, port(dup, 0));
         encode_term(net, &nxt, up, scope, vars)
       },
+
+
+      &Let {ref nam, ref val, ref bod} => {
+        let dup = new_node(net, DUP);
+        if nam == b"*" {
+          let era = new_node(net, ERA);
+          link(net, port(era, 1), port(era, 2));
+          link(net, port(dup, 1), port(era, 0));
+        }
+        let val = encode_term(net, &val, port(dup, 1), scope, vars);
+        link(net,port(dup, 1), val);
+        // encode_term(net, &bod, up, scope, vars);
+
+        let bod = encode_term(net, bod, port(dup, 2), scope, vars);
+        link(net, port(dup, 2), bod);
+        port(dup, 0) // ??????
+      },
       // A fix becomes a fix node.
       &Fix { ref nam, ref bod } => {
         let fix = new_node(net, FIX);

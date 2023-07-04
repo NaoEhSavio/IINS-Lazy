@@ -26,6 +26,8 @@ pub enum Term {
   // Superpositions
   Sup {tag: u32, fst: Box<Term>, snd: Box<Term>},
 
+  Let {nam: Vec<u8>, val: Box<Term>, bod: Box<Term>},
+
   // Duplications
   Dup {tag: u32, fst: Vec<u8>, snd: Vec<u8>, val: Box<Term>, nxt: Box<Term>},
 
@@ -111,6 +113,13 @@ impl Term {
         ctx.pop();
         Dup { tag, fst, snd, val, nxt }
       }
+      Let {nam, val, bod} => {
+        ctx.push(nam.clone());
+        let val = transform_term(val, ctx);
+        let bod = transform_term(bod, ctx);
+        ctx.pop();
+        Let {nam, val, bod}
+      }
       Fix { nam, bod } => {
         ctx.push(nam.clone());
         let bod = transform_term(bod, ctx);
@@ -163,6 +172,13 @@ impl Term {
           ctx.push(fst);
           let r = r || has_free_vars(nxt, definition_book, extracted_definition_book, outer_ctx, ctx);
           ctx.pop();
+          ctx.pop();
+          r
+        }
+        Let {nam, val, bod} => {
+          let r = has_free_vars(val, definition_book, extracted_definition_book, outer_ctx, ctx);
+          ctx.push(nam);
+          let r = r || has_free_vars(bod, definition_book, extracted_definition_book, outer_ctx, ctx);
           ctx.pop();
           r
         }
@@ -282,6 +298,12 @@ pub fn copy(space : &Vec<u8>, idx : u32, term : &Term) -> Term {
       let val = Box::new(copy(space, idx, val));
       let nxt = Box::new(copy(space, idx, nxt));
       Dup{tag, fst, snd, val, nxt}
+    },
+    Let {nam, val, bod } => {
+      let nam = namespace(space, idx, nam);
+      let val = Box::new(copy(space,idx,val));
+      let bod = Box::new(copy(space,idx,bod));
+      Let{nam, val, bod}
     },
     Fix{nam, bod} => {
       let nam = namespace(space, idx, nam);
