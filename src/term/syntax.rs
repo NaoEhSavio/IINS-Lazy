@@ -59,20 +59,6 @@ pub fn parse_term<'a>(code: &'a Str, ctx: &mut Context<'a>, idx: &mut u32, defin
       let end = code.iter().position(|&c| c == b'\n').unwrap_or(code.len());
       parse_term(&code[end..], ctx, idx, definitions)
     }
-    // Let: let nam = val  ;?
-    b'l' if code.starts_with(b"let ") => {
-      let (code, nam) = parse_name(&code[4..]);
-      let code = parse_text(code, b"=").unwrap();
-      let (code, val) = parse_term(code,ctx,idx,definitions);
-      let code = if code[0] == b';' {&code[1..]} else {code};
-      extend(nam, None, ctx);
-      let (code, bod) = parse_term(code, ctx, idx, definitions);
-      narrow(ctx);
-      let nam = nam.to_vec();
-      let val = Box::new(val);
-      let bod = Box::new(bod);
-      (code, Let  {nam, val, bod})      
-    }
     // Definition: `def nam = val; bod` (note: ';' is optional)
     b'd' if code.starts_with(b"def ") => {
       let (code, nam) = parse_name(&code[4..]);
@@ -192,6 +178,20 @@ pub fn parse_term<'a>(code: &'a Str, ctx: &mut Context<'a>, idx: &mut u32, defin
       let val = Box::new(val);
       let nxt = Box::new(nxt);
       (code, Dup { tag, fst, snd, val, nxt })
+    }
+    // Let: let nam = val  ;?
+    b'l' if code.starts_with(b"let ") => {
+      let (code, nam) = parse_name(&code[4..]);
+      let code = parse_text(code, b"=").unwrap();
+      extend(nam, None, ctx);
+      let (code, val) = parse_term(code,ctx,idx,definitions);
+      let code = if code[0] == b';' {&code[1..]} else {code};
+      let (code, bod) = parse_term(code, ctx, idx, definitions);
+      narrow(ctx);
+      let nam = nam.to_vec();
+      let val = Box::new(val);
+      let bod = Box::new(bod);
+      (code, Let  {nam, val, bod})      
     }
     // Fix: `@name body`
     b'@' => {
