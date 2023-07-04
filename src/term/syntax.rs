@@ -144,8 +144,8 @@ pub fn parse_term<'a>(code: &'a Str, ctx: &mut Context<'a>, idx: &mut u32, defin
       let (mut code, mut fun) = parse_term(&code[1..], ctx, idx, definitions);
       // code = skip_whitespace(code);
       while code[0] != b')' {
-        code = skip_whitespace(code);
-        let (code, arg) = parse_term(code, ctx, idx, definitions);
+        let (new_code, arg) = parse_term(code, ctx, idx, definitions);
+        code = skip_whitespace(new_code);
         let arg = Box::new(arg);
         fun = App { fun: Box::new(fun), arg };
       }
