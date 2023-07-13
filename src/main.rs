@@ -46,10 +46,16 @@ fn main() {
 
   let hashmap: HashMap<String, Term> = modified_vec.iter().cloned().collect();
 
+  let hashmap_clone = hashmap.clone();
+  
   let mut definition_book= term::definition_book::DefinitionBook::new(hashmap);
 
-  let term = ? 
+  // let (term, mut definition_) = term::from_string(code.as_bytes());
 
+  let term = hashmap_clone.get("run")
+    .cloned()
+    .ok_or_else(|| panic!("'def run' not found"))
+    .unwrap(); 
 
   definition_book.print();
   definition_book.extract_closed_subterms();
