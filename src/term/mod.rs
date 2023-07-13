@@ -4,7 +4,7 @@ mod as_net;
 pub mod definition_book;
 mod syntax;
 mod views;
-
+use contract;
 pub use self::as_net::*;
 use self::definition_book::{DefinitionBook, DefinitionId, DefinitionName};
 pub use self::syntax::*;

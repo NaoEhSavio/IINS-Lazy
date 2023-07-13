@@ -4,6 +4,10 @@
 #![allow(unused_variables)]
 
 extern crate itertools;
+extern crate logos;
+extern crate justerror;
+extern crate chumsky;
 
 pub mod term;
 pub mod inet;
+pub mod contract;

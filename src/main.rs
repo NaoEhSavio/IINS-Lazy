@@ -5,14 +5,16 @@
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
 
-extern crate ic;
+extern crate kic;
 extern crate clap;
-
 use clap::{Arg, App};
-use ic::*;
+use kic::*;
+use contract;
+use kic::term::{Term, definition_book,};
 use std::io;
 use std::io::prelude::*;
 use std::fs::File;
+use std::collections::HashMap;
 
 fn main() {
   let matches = App::new("My App")
@@ -30,7 +32,24 @@ fn main() {
   let mut code = String::new();
   file.read_to_string(&mut code).expect("Unable to read the file");
 
-  let (term, mut definition_book) = term::from_string(code.as_bytes());
+  let string_ref: &str = &code;
+
+  let parser: Vec<(String, contract::parser::AstTerm)> = contract::parser::parse_contract(string_ref).expect("Parser Err");
+
+  // let modified_vec: Vec<(String, Term)> = parser.iter().map(|(srt, second_elem)| (*srt, contract::parser::AstTerm::from(*second_elem))).collect();
+  let modified_vec: Vec<(String, Term)> = parser.into_iter().fold(Vec::new(), |mut acc, (first_elem, second_elem)| {
+    // let second_elem = contract::parser::AstTerm::from(second_elem);
+    let second_elem = contract::parser::AstTerm::into(second_elem);
+    acc.push((first_elem, second_elem ));
+    acc
+});
+
+  let hashmap: HashMap<String, Term> = modified_vec.iter().cloned().collect();
+
+  let mut definition_book= term::definition_book::DefinitionBook::new(hashmap);
+
+  let term = ? 
+
 
   definition_book.print();
   definition_book.extract_closed_subterms();
